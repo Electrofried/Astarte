@@ -391,11 +391,11 @@ class RollingTextDataset(Dataset):
     """
     Dataset class that handles text data with periodic rest periods.
     
-    Every 4th beat is a rest period:
+    Every 2nd beat is a rest period:
     - Normal beat: returns (input_ids, target, pause=False)
     - Rest beat: returns dummy input with pause=True
     """
-    def __init__(self, token_ids, chunk_length=512, pause_interval=4):
+    def __init__(self, token_ids, chunk_length=512, pause_interval=2):
         self.token_ids = token_ids
         self.chunk_length = chunk_length
         self.pause_interval = pause_interval
