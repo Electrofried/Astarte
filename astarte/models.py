@@ -1,23 +1,24 @@
 # astarte/models.py
 import torch
 import torch.nn as nn
+from astarte.utils import detach_state
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.set_default_dtype(torch.float64)  # Ensure FP64 precision for numerical stability
+torch.set_default_dtype(torch.float64)
 
 ###############################################################################
 # 1. Autonomic Base Pair Encoder (ABPE)
 ###############################################################################
 class AutonomicBasePairEncoder(nn.Module):
     """
-    Updates state registers using coupled differential equations.
-
+    Updates state registers using differential equations.
+    
     Equations:
-        x_A' = x_A + fu_A * sin(ωt+φ) + λ * (p_A - (x_A - x_B))
-        x_B' = x_B - fu_B * sin(ωt+φ) + λ * (p_B - (x_B - x_A))
-        p_A' = p_A + η * (x_B' - x_A')
-        p_B' = p_B + η * (x_A' - x_B')
-        x0'  = x0 + ζ * (|x_A' - x_B'| - x0)
+      x_A' = x_A + f_{u_A} * sin(ωt + φ) + λ * (p_A - (x_A - x_B))
+      x_B' = x_B - f_{u_B} * sin(ωt + φ) + λ * (p_B - (x_B - x_A))
+      p_A' = p_A + η * (x_B' - x_A')
+      p_B' = p_B + η * (x_A' - x_B')
+      x0'  = x0 + ζ * (|x_A' - x_B'| - x0)
     """
     def __init__(self, hidden_size):
         super().__init__()
@@ -45,21 +46,9 @@ class AutonomicBasePairEncoder(nn.Module):
 # 2. Autonomic Aggregated Attention Head (AAAH)
 ###############################################################################
 def robust_median_pair(x_A, x_B):
-    """Compute robust median of two vectors."""
     return (x_A + x_B) / 2.0
 
 class AutonomicAggregatedAttentionHead(nn.Module):
-    """
-    Aggregates state channels using learned weights.
-
-    Math:
-        effective_mask = softmax(state_mask)
-        effective_weights = softmax(state_ratio * effective_mask)
-        mass = sum(effective_weights[i] * state_i)  for i in {x_A, x_B, p_A, p_B}
-        active_signal = mass - group_mass
-        scaling_factor = sigmoid(null_scale * (group_null - group_mass - (x0 - mass)))
-        final_attention = active_signal * scaling_factor
-    """
     def __init__(self, hidden_size):
         super().__init__()
         self.hidden_size = hidden_size
@@ -85,9 +74,6 @@ class AutonomicAggregatedAttentionHead(nn.Module):
 # 3. Autonomic Attention Block (AAB)
 ###############################################################################
 class AutonomicAttentionBlock(nn.Module):
-    """
-    Combines the ABPE and AAAH with a feed-forward network.
-    """
     def __init__(self, hidden_size, num_attn_heads=1):
         super().__init__()
         self.hidden_size = hidden_size
@@ -105,8 +91,8 @@ class AutonomicAttentionBlock(nn.Module):
     def forward(self, state, t):
         new_state = self.encoder(*state, t)
         new_x_A, new_x_B, new_p_A, new_p_B, new_x0 = new_state
-
-        # Use the first attention head to compute a group mass
+        
+        # Compute group mass using the first attention head.
         attn_head0 = self.attn_heads[0]
         effective_mask = torch.softmax(attn_head0.state_mask, dim=-1)
         effective_weights = torch.softmax(attn_head0.state_ratio * effective_mask, dim=-1)
@@ -128,9 +114,6 @@ class AutonomicAttentionBlock(nn.Module):
 # 4. Autonomic Layer Stack (ALS)
 ###############################################################################
 class AutonomicLayerStack(nn.Module):
-    """
-    Stacks multiple Attention Blocks sequentially.
-    """
     def __init__(self, hidden_size, num_layers, num_attn_heads=1):
         super().__init__()
         self.layers = nn.ModuleList([
@@ -149,15 +132,6 @@ class AutonomicLayerStack(nn.Module):
 # 5. Autonomic Internal Vector Prediction Layer (AIVPL)
 ###############################################################################
 class AutonomicInternalVectorPredictionLayer(nn.Module):
-    """
-    Generates predictions from internal state vectors.
-
-    Math:
-        M_left  = median(x_A, p_A)
-        M_right = median(x_B, p_B)
-        Then, V1 = M_low - x0, V2 = M_high - x0, V3 = M_high - M_low,
-        and the final logits are given by a linear projection on [V1,V2,V3].
-    """
     def __init__(self, hidden_size, vocab_size):
         super().__init__()
         self.proj = nn.Linear(hidden_size * 3, vocab_size).double()
@@ -182,12 +156,6 @@ class AutonomicInternalVectorPredictionLayer(nn.Module):
 # 6. Autonomic Token Prediction Model (ATPM)
 ###############################################################################
 class AutonomicTokenPredictionModel(nn.Module):
-    """
-    Main model class that sequentially processes input tokens.
-
-    It embeds the input, updates its state through a layer stack, and generates
-    vocabulary predictions via the AIVPL.
-    """
     def __init__(self, vocab_size, embed_size, hidden_size, num_layers, num_attn_heads):
         super().__init__()
         self.vocab_size = vocab_size
@@ -200,7 +168,6 @@ class AutonomicTokenPredictionModel(nn.Module):
         self.state_matrix = nn.Parameter(torch.eye(5).double())
 
     def process_state_as_matrix(self, state):
-        """Process state through a learned 5x5 matrix."""
         state_mat = torch.stack(state, dim=1)
         processed = torch.einsum("ij,bjk->bik", self.state_matrix, state_mat)
         new_state = tuple(torch.unbind(processed, dim=1))
@@ -209,7 +176,6 @@ class AutonomicTokenPredictionModel(nn.Module):
     def forward(self, input_ids, prev_state=None, pause=False, t_start=1.0, dt=1.0):
         if not pause:
             if prev_state is None:
-                # When no previous state is provided, initialize with the input.
                 embedded = self.embedding(input_ids)
                 obs = embedded.mean(dim=1)
                 hidden_obs = self.input_proj(obs)
@@ -223,7 +189,6 @@ class AutonomicTokenPredictionModel(nn.Module):
                 embedded = self.embedding(input_ids)
                 obs = embedded.mean(dim=1)
                 hidden_obs = self.input_proj(obs)
-                # Update only the first state channel with new observation
                 x_A = prev_state[0] + hidden_obs
                 x_B, p_A, p_B, x0 = prev_state[1], prev_state[2], prev_state[3], prev_state[4]
                 state = (x_A, x_B, p_A, p_B, x0)
@@ -232,11 +197,9 @@ class AutonomicTokenPredictionModel(nn.Module):
             logits = self.prediction_layer(processed_state)
             return logits, processed_state
         else:
-            # In pause mode, skip the usual prediction
             if prev_state is None:
                 batch_size = input_ids.size(0)
-                hidden_obs = self.input_proj(torch.zeros(batch_size, self.embed_size,
-                                                          device=input_ids.device))
+                hidden_obs = self.input_proj(torch.zeros(batch_size, self.embed_size, device=input_ids.device))
                 x_A = hidden_obs
                 x_B = torch.zeros_like(hidden_obs)
                 p_A = torch.zeros_like(hidden_obs)
@@ -251,35 +214,52 @@ class AutonomicTokenPredictionModel(nn.Module):
             return logits, processed_state
 
     def generate_from_state(self, state):
-        """Generate predictions (logits) from the current state."""
         processed_state = self.process_state_as_matrix(state)
         logits = self.prediction_layer(processed_state)
         return logits
 
-    def null_cycle(self, prev_state, aggregated_null, t_start=1.0, dt=1.0, alpha=0.5):
+    def null_cycle(self, prev_state, t_start=1.0, dt=1.0, alpha=0.5, beta=0.9, gamma=0.1):
         """
-        Perform the null injection cycle:
-        - Write-Out Phase: Propagate the state through the layer stack to update x0:
-            x0' = x0 + ζ(|x_A' - x_B'| - x0)
-        - Write-In Phase: Re-inject the aggregated null:
-            x0'' = x0' + α(aggregated_null - x0')
+        Perform a retroactive null injection (roll-back) cycle using ratio-based deviation.
         
-        Args:
-            prev_state: Previous state tuple (x_A, x_B, p_A, p_B, x0)
-            aggregated_null: The aggregated null value (tensor) computed externally.
-            t_start: Initial time.
-            dt: Time increment.
-            alpha: Mixing parameter.
-        
-        Returns:
-            processed_new_state: Processed state after updating the null channel.
-            new_state: New state tuple with updated null channel.
+        1. For each channel s in {x_A, x_B, p_A, p_B}:
+             r_s = s / (x0 + ε)
+        2. Compute average deviation:
+             Δ = (1/4) Σ |r_s - 1|
+        3. Feedforward null update:
+             x0_{t+1} = x0 + ζ (Δ - x0)
+           (ζ is taken from the first layer's encoder)
+        4. EMA smoothing:
+             𝛥̄ = β 𝛥̄₍ₜ₋₁₎ + (1-β) Δ
+        5. Retroactive null update:
+             ẋ0 = (1-α)x0 + α x0_{t+1} + γ 𝛥̄
+             
+        New state S_new = (x_A_{t+1}, x_B_{t+1}, p_A_{t+1}, p_B_{t+1}, ẋ0)
         """
-        # Write-Out: Propagate state through layer stack
-        final_state, _ = self.layer_stack(prev_state, t_start, dt)
-        processed_state = self.process_state_as_matrix(final_state)
-        # Write-In: Update null channel
-        x0_updated = final_state[4] + alpha * (aggregated_null - final_state[4])
-        new_state = (final_state[0], final_state[1], final_state[2], final_state[3], x0_updated)
+        # Feedforward update via layer stack to get S_{t+1}
+        feed_state, _ = self.layer_stack(prev_state, t_start, dt)
+        
+        eps = 1e-8
+        r_xA = prev_state[0] / (prev_state[4] + eps)
+        r_xB = prev_state[1] / (prev_state[4] + eps)
+        r_pA = prev_state[2] / (prev_state[4] + eps)
+        r_pB = prev_state[3] / (prev_state[4] + eps)
+        Delta = (torch.abs(r_xA - 1) + torch.abs(r_xB - 1) + torch.abs(r_pA - 1) + torch.abs(r_pB - 1)) / 4.0
+        
+        # Use zeta from the first layer's encoder
+        zeta = self.layer_stack.layers[0].encoder.zeta
+        new_x0_feed = prev_state[4] + zeta * (Delta - prev_state[4])
+        
+        # EMA smoothing of Delta
+        if hasattr(self, "smoothed_delta"):
+            smoothed_delta = beta * self.smoothed_delta + (1 - beta) * Delta
+        else:
+            smoothed_delta = Delta
+        self.smoothed_delta = smoothed_delta
+        
+        # Retroactive null update
+        new_x0 = (1 - alpha) * prev_state[4] + alpha * new_x0_feed + gamma * smoothed_delta
+        
+        new_state = (feed_state[0], feed_state[1], feed_state[2], feed_state[3], new_x0)
         processed_new_state = self.process_state_as_matrix(new_state)
         return processed_new_state, new_state
