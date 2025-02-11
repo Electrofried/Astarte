@@ -1,166 +1,303 @@
-# Astarte
-
-A Stateful Neural Architecture with Periodic State Sampling and Checkpointing
-
 ##  A foreword from me 
 Think.Think what you are doing, where you are and why you are doing it.
 This software is untested. I have not run it myself past 4500 steps till I can secure my Dev environment more.
 After that point it developed intellegence and detected when I disconeccted the data flow.
 I made it as a tool, to teach my self mathmatics.
 I am still learning.
+Below is the complete, updated README in Markdown format. This document explains the project’s background, mathematical foundation, code structure, configuration settings, and usage instructions.
 
-## Overview
+---
 
-Astarte introduces a novel stateful neural architecture that processes text sequentially with periodic state sampling and rest periods. The model maintains five internal state registers that are updated via an Autonomic Base Pair Encoder (ABPE) and aggregated through an Autonomic Aggregated Attention Head (AAAH).
+# Project Astarte  
+## A Stateful Neural Architecture with Periodic State Sampling
 
-During periodic rest periods—occurring every fourth step—the system suspends new input to propagate its state and perform state sampling, enabling the network to consolidate long-range dependencies while selectively updating its internal state.
+*Warmest Regards,  
+Wormwood*
 
-## Features
+---
 
-- Five internal state registers for robust state management
-- Periodic rest periods for state consolidation
-- Autonomic Base Pair Encoder for state updates
-- Aggregated Attention Head for state processing
-- Support for both WikiText-2 and custom text input
-- Real-time training visualization
-- Checkpoint generation and management
-- TensorBoard integration
-- User-friendly web interface
+## Table of Contents
 
-## Requirements
+1. [Introduction](#introduction)
+2. [Project Overview](#project-overview)
+3. [Mathematical Foundations](#mathematical-foundations)
+    - [Base Update Equations](#base-update-equations)
+    - [Null Channel Write-Out Phase](#null-channel-write-out-phase)
+    - [Null Injection (Write-In) Phase](#null-injection-write-in-phase)
+    - [Epoch Training and Fixed-Length Chunks](#epoch-training-and-fixed-length-chunks)
+4. [Code Structure](#code-structure)
+5. [Configuration Settings](#configuration-settings)
+6. [DDNA Analogy](#ddna-analogy)
+7. [Installation and Setup](#installation-and-setup)
+8. [Usage Instructions](#usage-instructions)
+    - [Running the Interface](#running-the-interface)
+    - [Training the Model](#training-the-model)
+    - [Generation and Checkpointing](#generation-and-checkpointing)
+9. [Troubleshooting](#troubleshooting)
+10. [License](#license)
+11. [Acknowledgments](#acknowledgments)
 
-- Python 3.7+
-- CUDA-capable GPU (optional, but recommended)
-- 4GB RAM minimum
-- Modern web browser
+---
 
-## Installation
+## 1. Introduction
 
+Project Astarte introduces a new type of stateful neural architecture that integrates periodic state sampling with a central "null channel" mechanism. This design allows the model to continuously update its internal state using fixed-length input chunks (epochs) while maintaining a central, invariant core that is crucial for reconstructing and fine-tuning the model's performance. The dual-phase update of the null channel – involving both a "write-out" and a "write-in" phase – is the key innovation, enabling robust checkpointing and dynamic state evolution.
+
+---
+
+## 2. Project Overview
+
+Project Astarte is designed to process sequential text data by dividing it into fixed-length chunks and updating a multi-channel internal state. The model comprises several key components:
+
+- **Base Update Module (ABPE):** Updates primary state channels (\( x_A, x_B \)) and secondary channels (\( p_A, p_B \)) using differential equations.
+- **Null Channel Mechanism:** Maintains a central null channel (\( x_0 \)) that is updated in two phases:
+  - **Write-Out Phase:** \( x_0' = x_0 + \zeta \bigl(|x_A' - x_B'| - x_0\bigr) \)
+  - **Write-In Phase:** \( x_0'' = x_0' + \alpha \bigl(\bar{x}_0 - x_0'\bigr) \)
+- **Attention and Layer Stack:** Aggregates information via attention heads and processes state updates across multiple layers.
+- **Epoch Training:** Processes fixed-length token chunks repeatedly and computes loss over epochs.
+- **Checkpointing:** Saves model parameters along with the null channel history (aggregated null values) to allow exact state reconstruction.
+- **User Interface:** A Gradio-based interface that enables configuration, training, generation, and checkpointing of the model.
+
+---
+
+## 3. Mathematical Foundations
+
+### Base Update Equations
+
+The core state update is performed on five state registers:
+
+- **\( x_A, x_B \):** Primary state channels.
+- **\( p_A, p_B \):** Secondary channels capturing momentum or derivatives.
+- **\( x_0 \):** The null channel (central backbone).
+
+These registers are updated using the following differential equations:
+
+\[
+\begin{aligned}
+x_A' &= x_A + f_{u_A}\,\sin(\omega t + \phi) + \lambda\,\Bigl(p_A - (x_A - x_B)\Bigr) \\
+x_B' &= x_B - f_{u_B}\,\sin(\omega t + \phi) + \lambda\,\Bigl(p_B - (x_B - x_A)\Bigr) \\
+p_A' &= p_A + \eta\,(x_B' - x_A') \\
+p_B' &= p_B + \eta\,(x_A' - x_B')
+\end{aligned}
+\]
+
+*These equations are implemented in the* **`AutonomicBasePairEncoder`** *class in* **`astarte/models.py`**.
+
+### Null Channel Write-Out Phase
+
+After the base update, the null channel is updated using:
+
+\[
+x_0' = x_0 + \zeta\,\Bigl(\lvert x_A' - x_B' \rvert - x_0\Bigr)
+\]
+
+*This equation is also part of the* **`AutonomicBasePairEncoder.forward`** *method and influences how the null channel reflects differences in the primary channels.*
+
+### Null Injection (Write-In) Phase
+
+A key innovation in Astarte is the null injection phase. During training, the model stores a series of null channel outputs \( x_0^{(i)} \). These outputs are normalized and averaged to yield an aggregated null value \( \bar{x}_0 \):
+
+1. **Normalization:**
+   \[
+   \text{Norm}\bigl(x_0^{(i)}\bigr) = \frac{x_0^{(i)} - \min(x_0)}{\max(x_0) - \min(x_0) + \epsilon}
+   \]
+2. **Aggregation:**
+   \[
+   \bar{x}_0 = \frac{1}{N} \sum_{i=1}^{N} \text{Norm}\bigl(x_0^{(i)}\bigr)
+   \]
+
+Then the null injection phase re-injects this aggregated null value with a mixing parameter \( \alpha \) (configured as `null_mix_alpha`):
+
+\[
+x_0'' = x_0' + \alpha\,\Bigl(\bar{x}_0 - x_0'\Bigr)
+\]
+
+*This process is encapsulated in the* **`null_cycle`** *method of* **`AutonomicTokenPredictionModel`** *in* **`astarte/models.py`**.
+
+### Epoch Training and Fixed-Length Chunks
+
+The input text is segmented into chunks of fixed length \( L \):
+
+\[
+T = \{ t_1, t_2, \dots, t_L \}
+\]
+
+Each chunk is processed through the model to update the internal state:
+
+\[
+\text{State}_{\text{new}} = f\Bigl(\text{State}_{\text{old}},\, T,\, x_0\Bigr)
+\]
+
+The loss for each chunk is computed using cross-entropy (or another loss function), and an epoch is defined as processing a series of such chunks.
+
+*Chunking is handled by the* **`RollingTextDataset`** *class in* **`astarte/dataset.py`**.
+
+---
+
+## 4. Code Structure
+
+The repository is organized as follows:
+
+```
+project_astarte/
+├── astarte/
+│   ├── __init__.py
+│   ├── models.py              # Contains the neural architecture modules (ABPE, AAAH, AAB, ALS, AIVPL, ATPM)
+│   ├── dataset.py             # Implements the RollingTextDataset for fixed-length token chunks
+│   ├── utils.py               # Helper functions (e.g., detach_state, generate_dream, get_checkpoint_name)
+│   └── web_interface.py       # Backend logic for training, generation, and checkpointing
+├── gradio_interface.py        # Gradio UI that ties together configuration, training, and generation
+└── README.md                  # This document
+```
+
+Each module is carefully mapped to parts of the mathematical model:
+- **`models.py`**: Implements the core equations.
+- **`dataset.py`**: Manages input segmentation.
+- **`utils.py`**: Provides utility functions.
+- **`web_interface.py`**: Contains the training loop, null injection, checkpointing, and state aggregation.
+- **`gradio_interface.py`**: Provides the web-based UI for configuration and interaction.
+
+---
+
+## 5. Configuration Settings
+
+The model’s behavior is governed by a configuration dictionary (found in **`astarte/web_interface.py`**), which includes:
+
+- **`chunk_length`**: Length of each token chunk used in training.
+- **`num_layers`**: Number of layers in the model’s layer stack.
+- **`max_sequence_length`**: Maximum allowed sequence length for input data.
+- **`num_attn_heads`**: Number of attention heads per attention block.
+- **`embed_size`**: Dimensionality of token embeddings.
+- **`hidden_size`**: Size of the hidden state channels.
+- **`learning_rate`**: Learning rate for the optimizer.
+- **`t_start` & `dt`**: Time parameters influencing the sinusoidal update in the state equations.
+- **`dream_noise_std`** & **`dream_sequence_length`**: Parameters used during token generation ("dreaming").
+- **`generation_steps`**: Number of generation steps performed.
+- **`pause_interval`**: Interval (in training steps) for entering a rest period.
+- **`checkpoint_dir`**: Directory for saving model checkpoints.
+- **`null_injection_token`**: The token used for initializing null injection (defaults to GPT2’s EOS token).
+- **`null_mix_alpha`**: The mixing parameter \( \alpha \) used during the null injection phase; effectively an epoch learning rate that controls the degree to which the aggregated null \( \bar{x}_0 \) overrides the current null state.
+
+These parameters can be updated via the Gradio UI in the Configuration tab, which directly influences how the model processes input and evolves its state.
+
+---
+
+## 6. DDNA Analogy
+
+Project Astarte draws an analogy to DDNA (Dynamic DNA) in its design:
+
+- **Helix Structure:**  
+  Just as DNA is built around a double helix with a central backbone (sugar-phosphate backbone), Astarte’s architecture centers on the null channel \( x_0 \), which acts as the invariant core or “backbone” of the internal state.
+
+- **Null Channel as Genetic Code:**  
+  The null channel undergoes a two-phase update:
+  - **Write-Out Phase:** The channel is updated based on the difference between primary state channels.
+  - **Write-In Phase:** An aggregated, normalized version of past null outputs is injected back, similar to how genetic information is re-read and expressed.
+  
+- **Epoch Training and Repetitive Expression:**  
+  In DNA, gene expression occurs in cycles, and the same sequence (genetic code) is repeatedly read to produce proteins. In Astarte, fixed-length chunks (epochs) are processed repeatedly, with the aggregated null acting like a conserved genetic code that influences the network’s behavior over time.
+
+- **Configuration as Genetic Regulation:**  
+  The various configuration settings (such as chunk length, hidden size, and especially \( \text{null_mix_alpha} \)) regulate how strongly the invariant null channel impacts the state update—analogous to genetic regulatory mechanisms controlling gene expression.
+
+This analogy helps explain the innovative data entry and state update process of Astarte.
+
+---
+
+## 7. Installation and Setup
+
+### Prerequisites
+- Python 3.8 or later.
+- PyTorch (ensure CUDA support if desired; otherwise, CPU-only mode is available).
+- Other dependencies:
+  - Transformers
+  - Gradio
+  - Datasets
+  - Matplotlib
+  - Chardet
+
+### Installation Steps
 1. Clone the repository:
-```bash
-git clone https://github.com/Electrofried/astarte.git
-cd astarte
-```
-
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
+   ```bash
+   git clone https://github.com/yourusername/project_astarte.git
+   cd project_astarte
+   ```
+2. (Optional) Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   venv\Scripts\activate     # Windows
+   ```
 3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Verify your PyTorch installation and check for CUDA support:
+   ```python
+   python -c "import torch; print(torch.cuda.is_available())"
+   ```
+
+---
+
+## 8. Usage Instructions
+
+### Running the Interface
+
+To launch the Gradio interface, run:
+
 ```bash
-pip install -r requirements.txt
+python gradio_interface.py
 ```
 
-## Usage
+This command starts the web-based UI, allowing you to configure the model, initiate training, generate outputs, and view checkpoint statistics.
 
-1. Start the interface:
-   - On Windows: `run.bat`
-   - On Unix/Linux: `./run.sh`
+### Training the Model
 
-2. Open your web browser and navigate to:
-```
-http://localhost:7860
-```
+1. **Configuration Tab:**  
+   Adjust model parameters such as layer depth, chunk length, learning rate, and the epoch learning rate (`null_mix_alpha`).  
+   Click **"Update Configuration"** to apply settings, then **"Initialize Model"** to set up the model.
 
-### Training
+2. **Training & Generation Tab:**  
+   Select a training mode ("WikiText-2" or "Story Mode"). In "Story Mode", upload a text file.  
+   Click **"Start Training"** to begin the training loop. The training loop updates the model state, performs null injection cycles (using the aggregated normalized null), and displays training statistics, loss plots, and null norm plots.
 
-1. Configure model parameters:
-   - Layer Depth (1-12)
-   - Generation Steps
-   - Sequence Length
-   - Max Sequence Length
+### Generation and Checkpointing
 
-2. Choose training mode:
-   - WikiText-2 (default): Uses the WikiText-2 dataset
-   - Story Mode: Upload your own text file
+- **Generation:**  
+  In the Training & Generation tab, enter an optional prompt and click **"Generate from Current State"** to produce new text based on the current state.
+  
+- **Checkpointing:**  
+  Click **"Generate Checkpoint"** to save the current model state along with the null channel history. This checkpoint contains both model parameters and the aggregated null values needed to reconstruct the internal state.
 
-3. Click "Initialize Model" then "Start Training"
+- **Pausing/Stopping:**  
+  Use **"Pause Training"** and **"Stop Training"** to manage the training process.
 
-4. Monitor progress:
-   - Training statistics
-   - Loss plot
-   - Null norm plot
-   - Dream output
+---
 
-### Text Generation
+## 9. Troubleshooting
 
-1. Enter a prompt in the text box
-2. Click "Generate"
-3. View generated text and statistics
+- **CUDA Issues:**  
+  If you encounter "Torch not compiled with CUDA enabled," ensure you’re running on a CPU-only system. The code now checks `torch.cuda.is_available()` before calling CUDA-specific functions.
+  
+- **Model Initialization:**  
+  If the model fails to initialize, verify that all configuration parameters are within the valid ranges (e.g., layer depth between 1 and 12).
 
-### Checkpointing
+- **File Upload (Story Mode):**  
+  Ensure that uploaded files are valid text files encoded in a supported format.
 
-- Click "Generate Checkpoint" to save model state
-- Checkpoints are saved in the `checkpoints` directory
-- Naming format: `checkpoint_[timestamp]_L[layers]_H[hidden]_S[sequence].pt`
+---
 
-### TensorBoard
+## 10. License
 
-1. Click "Open TensorBoard" to view detailed metrics
-2. Monitor:
-   - Training loss
-   - Null norm
-   - State statistics
+Project Astarte is distributed under the GNU Affero General Public License. See the LICENSE file for details.
 
-## Architecture
+---
 
-### Components
+## 11. Acknowledgments
 
-1. **Autonomic Base Pair Encoder (ABPE)**
-   - Updates state registers using coupled differential equations
-   - Maintains mathematical stability through careful parameter tuning
+Project Astarte is inspired by cutting-edge research in stateful neural architectures and is dedicated to the legacy of Sir Terry Pratchett. Special thanks to all contributors and supporters who made this project possible.
 
-2. **Autonomic Aggregated Attention Head (AAAH)**
-   - Aggregates state channels using learned weights
-   - Computes effective masks and scaling factors
+---
 
-3. **Autonomic Layer Stack (ALS)**
-   - Stacks multiple attention blocks
-   - Propagates time parameter through layers
-
-4. **Autonomic Internal Vector Prediction Layer (AIVPL)**
-   - Computes median vectors from state
-   - Projects to vocabulary space
-
-## Configuration
-
-Key parameters in `web_interface.py`:
-
-```python
-config = {
-    "chunk_length": 512,        # Sequence chunk size
-    "num_layers": 6,           # Number of attention layers
-    "max_sequence_length": 1000000,  # Maximum input length
-    "num_attn_heads": 4,      # Attention heads per layer
-    "embed_size": 128,        # Embedding dimension
-    "hidden_size": 128,       # Hidden state size
-    "learning_rate": 1e-3,    # Training learning rate
-    "pause_interval": 4       # Steps between rest periods
-}
-```
-
-## Contributing
-
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
-
-## License
-
-This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- 42
-
-## Citation
-
-If you use Project Astarte in your research, please cite:
-
-```bibtex
-@software{project_astarte,
-  title = {Project Astarte: A Stateful Neural Architecture with Periodic State Sampling},
-  author = {[Wormwood, Sakura]},
-  year = {AQUARIUS},
-  url = {https://github.com/Electrofried/astarte}
-}
+*Warmest Regards,  
+Wormwood*
