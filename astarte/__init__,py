@@ -1,0 +1,23 @@
+# astarte/__init__.py
+
+"""
+Project Astarte Package
+
+This package contains the core components of the Astarte model,
+including the neural architecture, dataset handling, utility functions,
+and the web interface.
+"""
+
+from .models import (
+    AutonomicBasePairEncoder,
+    AutonomicAggregatedAttentionHead,
+    AutonomicAttentionBlock,
+    AutonomicLayerStack,
+    AutonomicInternalVectorPredictionLayer,
+    AutonomicTokenPredictionModel
+)
+from .dataset import RollingTextDataset
+from .utils import detach_state, get_checkpoint_name, generate_dream
+from .web_interface import create_interface
+
+__version__ = "1.1"

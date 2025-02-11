@@ -1,0 +1,26 @@
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+*.env
+.gradio/
+
+# Python compiled files and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Checkpoints directory (model checkpoints)
+checkpoints/
+
+# Tensorboard runs/logs directory
+runs/
+
+# Temporary plot files and other temporary files
+temp_*.png
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
