@@ -1,4 +1,3 @@
-```markdown
 # Astarte: A Novel Helical Dynamics Model with a Relativistic Energy-Transfer Limit
 
 **Authors:**  
