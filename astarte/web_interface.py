@@ -212,6 +212,28 @@ class AstarteInterface:
             print(f"Error during checkpoint generation: {str(e)}")
             return {"error": f"Failed to generate checkpoint: {str(e)}"}
 
+    # NEW: List available checkpoints.
+    def list_checkpoints(self):
+        checkpoint_dir = self.config["checkpoint_dir"]
+        checkpoints = [f for f in os.listdir(checkpoint_dir) if f.startswith("checkpoint_") and f.endswith(".pt")]
+        return sorted(checkpoints)
+
+    # NEW: Load a checkpoint given its filename.
+    def load_checkpoint(self, checkpoint_file):
+        checkpoint_path = os.path.join(self.config["checkpoint_dir"], checkpoint_file)
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+            if self.model is None:
+                # If no model exists, initialize one using current config.
+                self.initialize_model()
+            self.model.load_state_dict(checkpoint["model_state_dict"])
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            self.current_state = checkpoint.get("state", None)
+            self.stats = {"step": checkpoint.get("step", 0), "loss": checkpoint.get("loss", 0.0)}
+            return f"Checkpoint '{checkpoint_file}' loaded successfully at step {self.stats['step']}."
+        except Exception as e:
+            return f"Error loading checkpoint: {str(e)}"
+
     def start_training(self, mode, story_text=None):
         try:
             if self.is_training:

@@ -84,6 +84,12 @@ def create_interface():
                             tensorboard_btn = gr.Button("Open TensorBoard")
                             checkpoint_btn = gr.Button("Generate Checkpoint", interactive=False)
                     with gr.Column():
+                        gr.Markdown("### Checkpoint Management")
+                        checkpoint_dropdown = gr.Dropdown(label="Available Checkpoints", choices=[], interactive=True)
+                        refresh_btn = gr.Button("Refresh Checkpoint List")
+                        load_checkpoint_btn = gr.Button("Load Checkpoint")
+                        checkpoint_status = gr.Textbox(label="Checkpoint Status", interactive=False)
+                    with gr.Column():
                         gr.Markdown("### Training Progress")
                         training_stats = gr.JSON(label="Training Statistics")
                         with gr.Row():
@@ -123,6 +129,18 @@ def create_interface():
                     return interface.generate_text(prompt)
                 generate_btn.click(fn=generate_with_prompt, inputs=[prompt_input], outputs=[memory_output])
                 checkpoint_btn.click(fn=interface.generate_checkpoint, inputs=[], outputs=[training_stats])
+                
+                # New: Refresh checkpoint list.
+                def refresh_checkpoint_list():
+                    return gr.update(choices=interface.list_checkpoints())
+                refresh_btn.click(fn=refresh_checkpoint_list, inputs=[], outputs=[checkpoint_dropdown])
+                
+                # New: Load selected checkpoint.
+                def load_checkpoint_fn(selected_checkpoint):
+                    if not selected_checkpoint:
+                        return "No checkpoint selected."
+                    return interface.load_checkpoint(selected_checkpoint)
+                load_checkpoint_btn.click(fn=load_checkpoint_fn, inputs=[checkpoint_dropdown], outputs=[checkpoint_status])
     
     return app
 

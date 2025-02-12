@@ -14,11 +14,14 @@ class AutonomicBasePairEncoder(nn.Module):
     Updates state registers using our helix‐driven differential equations.
     
     Equations:
-      x_A' = x_A + f_{uA} * sin(ωt + φ) + λ * (p_A - (x_A - x_B))
-      x_B' = x_B - f_{uB} * sin(ωt + φ) + λ * (p_B - (x_B - x_A))
+      x_A' = x_A + f_{uA} * sin(ω(t+Δt) + φ) + λ * (p_A - (x_A - x_B))
+      x_B' = x_B - f_{uB} * sin(ω(t+Δt) + φ) + λ * (p_B - (x_B - x_A))
       p_A' = p_A + η * (x_B' - x_A')
       p_B' = p_B + η * (x_A' - x_B')
       x₀'  = x₀ + ζ * (‖x_A' - x_B'‖ - x₀)
+      
+    Note: The term Δt is introduced to allow a slight phase offset (pulse)
+          when the input is injected into one channel vs. the other.
     """
     def __init__(self, hidden_size):
         super().__init__()
@@ -33,7 +36,7 @@ class AutonomicBasePairEncoder(nn.Module):
         self.eps   = 1e-6
         
     def forward(self, x_A, x_B, p_A, p_B, x0, t):
-        # Compute the helix signal.
+        # Compute the helix signal with the effective time t (which might include an offset)
         s = torch.sin(self.omega * t + self.phi)
         # Update base registers.
         new_x_A = x_A + self.fu_A * s + self.lam * (p_A - (x_A - x_B))
@@ -114,7 +117,7 @@ class AutonomicAttentionBlock(nn.Module):
             AutonomicAggregatedAttentionHead(hidden_size)
             for _ in range(num_attn_heads)
         ])
-        # Update LayerNorm to cover the concatenated dimension.
+        # LayerNorm now covers the concatenated dimension from all attention heads.
         self.layernorm = nn.LayerNorm(hidden_size * num_attn_heads)
         self.dropout = nn.Dropout(dropout)
         self.ffn = nn.Sequential(
@@ -207,6 +210,10 @@ class AutonomicTokenPredictionModel(nn.Module):
         self.layer_stack = AutonomicLayerStack(hidden_size, num_layers, num_attn_heads, dropout)
         self.prediction_layer = AutonomicInternalVectorPredictionLayer(hidden_size, vocab_size)
         self.state_matrix = nn.Parameter(torch.eye(5).double())
+        
+        # NEW: A toggle flag to alternate injection, and a pulse offset for timing.
+        self.toggle = True  # True => update high channel (x_A); False => update low channel (x_B)
+        self.pulse_offset = 0.1  # Time offset for alternating pulses
 
     def process_state_as_matrix(self, state):
         state_mat = torch.stack(state, dim=1)
@@ -215,6 +222,7 @@ class AutonomicTokenPredictionModel(nn.Module):
         return new_state
 
     def forward(self, input_ids, prev_state=None, t_start=1.0, dt=1.0):
+        # Alternate the injection of new observations to create a ladder-like temporal pulse.
         if prev_state is None:
             embedded = self.embedding(input_ids)
             obs = embedded.mean(dim=1)
@@ -225,15 +233,31 @@ class AutonomicTokenPredictionModel(nn.Module):
             p_B = torch.zeros_like(hidden_obs)
             x0  = torch.zeros_like(hidden_obs)
             state = (x_A, x_B, p_A, p_B, x0)
+            # On first pass, use the base time.
+            effective_t = t_start
+            self.toggle = True
         else:
             embedded = self.embedding(input_ids)
             obs = embedded.mean(dim=1)
             hidden_obs = self.input_proj(obs)
-            # Write new observation only to x_A.
-            x_A = prev_state[0] + hidden_obs
-            x_B, p_A, p_B, x0 = prev_state[1], prev_state[2], prev_state[3], prev_state[4]
+            # Depending on toggle, inject into one channel and leave the other unchanged.
+            if self.toggle:
+                # "High-Low" injection: update the high channel (x_A) while x_B remains.
+                x_A = prev_state[0] + hidden_obs
+                x_B = prev_state[1]
+            else:
+                # "Low-High" injection: update the low channel (x_B) while x_A remains.
+                x_B = prev_state[1] + hidden_obs
+                x_A = prev_state[0]
+            p_A, p_B, x0 = prev_state[2], prev_state[3], prev_state[4]
             state = (x_A, x_B, p_A, p_B, x0)
-        final_state, _ = self.layer_stack(state, t_start, dt)
+            # Use an effective time offset for one of the injection phases.
+            effective_t = t_start if self.toggle else t_start + self.pulse_offset
+            # Flip the toggle for the next step.
+            self.toggle = not self.toggle
+
+        # Propagate the state through the layer stack using the effective time.
+        final_state, _ = self.layer_stack(state, effective_t, dt)
         processed_state = self.process_state_as_matrix(final_state)
         logits = self.prediction_layer(processed_state)
         return logits, processed_state
