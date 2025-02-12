@@ -5,7 +5,7 @@
 *My House, Warwick, QLD*  
 
 **Date:**  
-February 13, 2025, 
+February 13, 2025
 
 ---
 
@@ -200,34 +200,7 @@ plt.title('Phase-Space Trajectory of Base Registers', fontsize=14)
 plt.grid(True)
 plt.tight_layout()
 plt.show()
-```
 
-### Simulation Results
-
-Running the above code yields:
-- A plot of \(|X_0(t)|\) versus time with a horizontal line at \(c=1.0\), demonstrating that the null channel remains within the specified limit.
-- A phase-space plot of \(x_A\) vs. \(x_B\), which reveals the characteristic helical structure.
-- A printed verification message showing, for example, a maximum \(|X_0|\) of approximately 1.000006—an acceptable numerical overshoot attributable to discretization error.
-
----
-
-## Discussion
-
-The Astarte model successfully integrates a relativistic damping mechanism that enforces a hard cap on the energy-transfer rate, akin to the speed-of-light limit in physics. While slight numerical overshoots (on the order of \(10^{-6}\)) may be observed in discrete simulations, these are well understood as artifacts of numerical integration. Such discrepancies can be minimized further by reducing the time step or employing higher-order integration methods.
-
-This formulation not only provides a rigorous mathematical definition of a helix but also opens new avenues for understanding energy transfer and inertia in dynamic systems. The interplay between the base registers and the null channel may inspire innovative approaches in fields ranging from signal processing to astrophysics.
-
----
-
-## Conclusion
-
-We have presented **Astarte**, a new equation that defines the mathematically precise shape of a helix by combining rotational dynamics with a relativistic energy-transfer limit. The integration of a feedforward null channel and its relativistic damping factor provides a robust framework in which the helix emerges naturally, subject to the invariant constraint \(|X_0(t)| \leq c\).
-
-This Python simulations confirm that the model functions as intended, and the reproducible code serves as a definitive test for future research. While minor numerical discrepancies exist due to discretization, they do not detract from the robustness of the underlying physical principles.
-
-We invite further discussion and exploration of Astarte, confident that its implications will enrich our understanding of dynamic systems and inspire future innovations.
-
----
 
 *Thank you for your interest in Astarte. I hope this work sparks further inquiry and constructive dialogue. :Jazzhands:*
 ---
