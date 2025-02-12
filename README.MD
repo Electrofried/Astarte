@@ -35,57 +35,61 @@ which prevents the null channel from “accelerating” beyond a preset limit \(
 
 ## Theoretical Framework
 
-### Model Overview
+Below is a reformatted version of the document section that should display correctly on GitHub. It avoids extraneous LaTeX syntax and uses Markdown code blocks for the equations.
+
+---
+
+## Model Overview
 
 The Astarte model consists of three primary components:
 
-1. **Base Registers \(x_A\) and \(x_B\):**  
-   Represent two complementary components steered by their deviation from a common reference (the null channel \(X_0\)) as well as by a continuously rotating modulation signal.
+1. **Base Registers (x_A) and (x_B):**  
+   Represent two complementary components steered by their deviation from a common reference (the null channel, X₀) as well as by a continuously rotating modulation signal.
 
-2. **Null Channel \(X_0\):**  
+2. **Null Channel (X₀):**  
    Functions as a mediator that integrates a feedforward term driving its value toward the input’s norm, combined with a corrective term proportional to the difference between the base registers. Its update is modulated by a relativistic damping factor.
 
 3. **Relativistic Correction:**  
-   The factor
-   \[
-   \sqrt{1-\frac{\|X_0(t)\|^2}{c^2}}
-   \]
-   ensures that as \(\|X_0(t)\|\) approaches the critical limit \(c\), the update is progressively diminished, thus enforcing a hard energy-transfer cap.
+   The factor  
+   ```
+   sqrt(1 - |X₀(t)|² / c²)
+   ```  
+   ensures that as |X₀(t)| approaches the critical limit c, the update is progressively diminished, thus enforcing a hard energy-transfer cap.
 
-### Final Equations
+---
+
+## Final Equations
 
 Let:
-- \(I\) be the constant input vector,
-- \(A = \kappa\,\lambda\,I\) the scaled input signal,
-- \(\theta(t) = \omega\,t + \phi\) the continuous angular phase,
-- \(\Delta(t) = x_A(t) - x_B(t)\) the difference between the two base registers.
+- **I** be the constant input vector,
+- **A = κ · λ · I** be the scaled input signal,
+- **θ(t) = ω·t + φ** be the continuous angular phase,
+- **Δ(t) = x_A(t) - x_B(t)** be the difference between the two base registers.
 
-For a small time increment \(\Delta t\), the updates are defined as follows:
+For a small time increment **Δt**, the updates are defined as follows:
 
-1. **Base Register Updates:**
-   \[
-   \begin{aligned}
-   x_A(t+\Delta t) &= X_0(t) + (1-\mu)\Bigl[x_A(t)-X_0(t)\Bigr] + \mu\, A\,\cos\bigl(\theta(t)\bigr),\\[1mm]
-   x_B(t+\Delta t) &= X_0(t) + (1-\mu)\Bigl[x_B(t)-X_0(t)\Bigr] + \mu\, A\,\sin\bigl(\theta(t)\bigr).
-   \end{aligned}
-   \]
+### Base Register Updates:
+```plaintext
+x_A(t + Δt) = X₀(t) + (1 - μ) · [ x_A(t) - X₀(t) ] + μ · A · cos(θ(t))
+x_B(t + Δt) = X₀(t) + (1 - μ) · [ x_B(t) - X₀(t) ] + μ · A · sin(θ(t))
+```
 
-2. **Null Channel Update with Energy-Transfer Limit:**
-   \[
-   X_0(t+\Delta t) = X_0(t) + \Biggl\{ \zeta\,\Bigl(\|I\|-\|X_0(t)\|\Bigr) - \delta\,\Delta(t)\,\sqrt{t} \Biggr\}\,\sqrt{1-\frac{\|X_0(t)\|^2}{c^2}}.
-   \]
+### Null Channel Update with Energy-Transfer Limit:
+```plaintext
+X₀(t + Δt) = X₀(t) + { ζ · ( |I| - |X₀(t)| ) - δ · Δ(t) · sqrt(t) } · sqrt(1 - |X₀(t)|² / c²)
+```
 
-3. **Combined System:**
-   \[
-   \boxed{
-   \begin{aligned}
-   \theta(t) &= \omega\,t + \phi,\quad A = \kappa\,\lambda\,I,\quad \Delta(t)= x_A(t)-x_B(t),\\[1mm]
-   x_A(t+\Delta t) &= X_0(t) + (1-\mu)\bigl[x_A(t)-X_0(t)\bigr] + \mu\, A\,\cos\bigl(\theta(t)\bigr),\\[1mm]
-   x_B(t+\Delta t) &= X_0(t) + (1-\mu)\bigl[x_B(t)-X_0(t)\bigr] + \mu\, A\,\sin\bigl(\theta(t)\bigr),\\[1mm]
-   X_0(t+\Delta t) &= X_0(t) + \Biggl\{ \zeta\,\Bigl(\|I\|-\|X_0(t)\|\Bigr) - \delta\,\Delta(t)\,\sqrt{t} \Biggr\}\,\sqrt{1-\frac{\|X_0(t)\|^2}{c^2}}.
-   \end{aligned}
-   }
-   \]
+### Combined System:
+```plaintext
+θ(t) = ω·t + φ
+A = κ · λ · I
+Δ(t) = x_A(t) - x_B(t)
+
+x_A(t + Δt) = X₀(t) + (1 - μ) · [ x_A(t) - X₀(t) ] + μ · A · cos(θ(t))
+x_B(t + Δt) = X₀(t) + (1 - μ) · [ x_B(t) - X₀(t) ] + μ · A · sin(θ(t))
+X₀(t + Δt) = X₀(t) + { ζ · ( |I| - |X₀(t)| ) - δ · Δ(t) · sqrt(t) } · sqrt(1 - |X₀(t)|² / c²)
+```
+
 
 ---
 
