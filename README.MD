@@ -96,8 +96,7 @@ To validate the Astarte model, we implemented a discrete-time simulation in Pyth
 
 ### Python Code
 
-```
-python
+```python
 import numpy as np
 import matplotlib.pyplot as plt
 
