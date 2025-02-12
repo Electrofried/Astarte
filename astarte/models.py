@@ -56,11 +56,10 @@ class AutonomicAggregatedAttentionHead(nn.Module):
     Steps:
       A. Aggregation with self offset:
          m_raw = w_0*x_A' + w_1*x_B' + w_2*p_A' + w_3*p_B'
-         group_mass = m_raw + x₀'
+         group_mass_local = m_raw + x₀'
       
       B. Gravitational & Lens Scaling:
-         Each head has a learned mass m.
-         L = α * sigmoid(τ * m) + β
+         L = α * sigmoid(τ * head_mass) + β
       
       C. Self-Scaling:
          S = sigmoid(γ * (group_mass_local - x₀') + δ)
@@ -115,7 +114,7 @@ class AutonomicAttentionBlock(nn.Module):
             AutonomicAggregatedAttentionHead(hidden_size)
             for _ in range(num_attn_heads)
         ])
-        # Update layernorm to match the concatenated dimension:
+        # Update LayerNorm to cover the concatenated dimension.
         self.layernorm = nn.LayerNorm(hidden_size * num_attn_heads)
         self.dropout = nn.Dropout(dropout)
         self.ffn = nn.Sequential(

@@ -171,6 +171,8 @@ class AstarteInterface:
         return f"Training dataset updated for mode: {mode}"
 
     def generate_text(self, prompt):
+        if self.model is None:
+            return "Model not initialized. Please initialize the model before generating text."
         self.model.eval()
         prompt_ids = self.tokenizer.encode(prompt, add_special_tokens=False) if prompt else [self.config["null_injection_token"]]
         generated = prompt_ids[:]
@@ -213,9 +215,13 @@ class AstarteInterface:
     def start_training(self, mode, story_text=None):
         try:
             if self.is_training:
-                return ({"status": "Training already in progress"}, None, None, "",
-                        gr.update(visible=True), gr.update(interactive=False),
-                        gr.update(visible=False), gr.update(visible=False))
+                return ({"status": "Training already in progress"},
+                        None,
+                        None,
+                        gr.update(visible=True),
+                        gr.update(interactive=False),
+                        gr.update(visible=False),
+                        gr.update(visible=False))
             if self.model is None:
                 self.initialize_model()
             self.loss_history = []
@@ -237,7 +243,7 @@ class AstarteInterface:
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=1000)
             loss_fn = torch.nn.CrossEntropyLoss(ignore_index=-100)
             memory_output = ""
-            # Updated training loop: unpack only the first two items from each sample.
+            # Updated training loop: yield exactly 7 outputs.
             for data in self.dataset:
                 if not self.is_training or self.is_paused:
                     break
@@ -284,17 +290,15 @@ class AstarteInterface:
                 loss_plot = self.create_plot(self.loss_history, "Training Loss", "Loss")
                 yield (self.stats,
                        loss_plot,
-                       "",
                        memory_output,
-                       gr.update(visible=False),
-                       gr.update(interactive=True),
-                       gr.update(visible=True, value="Pause Training"),
-                       gr.update(visible=True))
+                       gr.update(visible=False),              # train_btn update
+                       gr.update(interactive=True),             # checkpoint_btn update
+                       gr.update(visible=True, value="Pause Training"),  # pause_btn update
+                       gr.update(visible=True))                 # stop_btn update
         except Exception as e:
             print(f"Training error: {str(e)}")
             self.is_training = False
             return ({"error": str(e)},
-                    None,
                     None,
                     str(e),
                     gr.update(visible=True),

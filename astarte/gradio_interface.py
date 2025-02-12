@@ -103,9 +103,13 @@ def create_interface():
                         for training_result in result:
                             yield training_result
                     except Exception as e:
-                        yield ({"error": str(e)}, None, None, str(e),
-                               gr.update(visible=True), gr.update(interactive=False),
-                               gr.update(visible=False), gr.update(visible=False))
+                        yield ({"error": str(e)},
+                               None,
+                               str(e),
+                               gr.update(visible=True),
+                               gr.update(interactive=False),
+                               gr.update(visible=False),
+                               gr.update(visible=False))
                 
                 train_btn.click(fn=start_and_toggle_training, 
                                 inputs=[mode, story_input],
