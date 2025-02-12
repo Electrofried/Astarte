@@ -5,7 +5,7 @@ from astarte.web_interface import AstarteInterface, open_tensorboard
 def create_interface():
     interface = AstarteInterface()
     
-    with gr.Blocks(title="Project Astarte", css="""
+    with gr.Blocks(title="Project Astarte v2.0", css=""" 
         .container { margin: 0 auto; max-width: 1200px; padding: 20px; }
         .header { text-align: center; margin-bottom: 40px; }
         .project-info { 
@@ -30,7 +30,7 @@ def create_interface():
             with gr.TabItem("Configuration"):
                 with gr.Column(elem_classes="container"):
                     with gr.Column(elem_classes="header"):
-                        gr.Markdown("# Project Astarte Configuration")
+                        gr.Markdown("# Project Astarte v2.0 Configuration")
                         gr.Markdown("### Set Model and Training Parameters")
                     with gr.Column():
                         layer_depth = gr.Slider(1, 12, value=12, step=1, label="Number of Layers")
@@ -43,10 +43,7 @@ def create_interface():
                         learning_rate = gr.Number(value=1e-3, label="Learning Rate", precision=5)
                         t_start = gr.Number(value=1.0, label="Initial Time (t_start)", precision=1)
                         dt = gr.Number(value=1.0, label="Time Increment (dt)", precision=1)
-                        pause_interval = gr.Number(value=4, label="Pause Interval (Steps)", precision=0)
-                        dream_noise_std = gr.Number(value=0.01, label="Dream Noise Std", precision=3)
-                        dream_sequence_length = gr.Number(value=1024, label="Dream Sequence Length (Tokens)", precision=0)
-                        null_mix_alpha = gr.Number(value=0.5, label="Epoch Learning Rate (α)", precision=2)
+                        null_mix_alpha = gr.Number(value=0.5, label="Null Mix Alpha", precision=2)
                         
                         update_btn = gr.Button("Update Configuration")
                         config_output = gr.Textbox(label="Configuration Status")
@@ -56,7 +53,7 @@ def create_interface():
                 
                 def update_config_all(layer_depth, generation_steps, sequence_length, max_seq_length, 
                                         null_mix_alpha, num_attn_heads, embed_size, hidden_size,
-                                        learning_rate, t_start, dt, dream_noise_std, dream_sequence_length, pause_interval):
+                                        learning_rate, t_start, dt):
                     interface.config["num_attn_heads"] = int(num_attn_heads)
                     interface.config["embed_size"] = int(embed_size)
                     interface.config["hidden_size"] = int(hidden_size)
@@ -64,15 +61,12 @@ def create_interface():
                     interface.config["learning_rate"] = float(learning_rate)
                     interface.config["t_start"] = float(t_start)
                     interface.config["dt"] = float(dt)
-                    interface.config["dream_noise_std"] = float(dream_noise_std)
-                    interface.config["dream_sequence_length"] = int(dream_sequence_length)
-                    interface.config["pause_interval"] = int(pause_interval)
                     return interface.update_config(layer_depth, generation_steps, sequence_length, max_seq_length, null_mix_alpha)
                 
                 update_btn.click(fn=update_config_all, 
                                  inputs=[layer_depth, generation_steps, sequence_length, max_seq_length, 
                                          null_mix_alpha, num_attn_heads, embed_size, hidden_size,
-                                         learning_rate, t_start, dt, dream_noise_std, dream_sequence_length, pause_interval],
+                                         learning_rate, t_start, dt],
                                  outputs=[config_output])
                 init_model_btn.click(fn=interface.initialize_model, inputs=[], outputs=[init_output])
             
@@ -94,7 +88,6 @@ def create_interface():
                         training_stats = gr.JSON(label="Training Statistics")
                         with gr.Row():
                             loss_plot = gr.Image(label="Loss Plot")
-                            null_norm_plot = gr.Image(label="Null Norm Plot")
                         gr.Markdown("### Generated Output")
                         prompt_input = gr.Textbox(label="Optional Prompt", lines=2, placeholder="Enter prompt for generation...")
                         memory_output = gr.Textbox(label="Generated Output", lines=10, interactive=False)
@@ -116,17 +109,15 @@ def create_interface():
                 
                 train_btn.click(fn=start_and_toggle_training, 
                                 inputs=[mode, story_input],
-                                outputs=[training_stats, loss_plot, null_norm_plot, memory_output,
+                                outputs=[training_stats, loss_plot, memory_output,
                                          train_btn, checkpoint_btn, pause_btn, stop_btn])
                 tensorboard_btn.click(fn=open_tensorboard, inputs=[], outputs=[config_output])
                 pause_btn.click(fn=interface.pause_resume_training, inputs=[], outputs=[training_stats, pause_btn, checkpoint_btn])
                 stop_btn.click(fn=interface.stop_training, inputs=[], outputs=[training_stats, train_btn, pause_btn, stop_btn])
                 
-                def generate_with_checkpoint(prompt):
-                    if interface.is_training and not interface.is_paused:
-                        interface.pause_resume_training()
-                    return interface.generate_from_state(interface.current_state, prompt)
-                generate_btn.click(fn=generate_with_checkpoint, inputs=[prompt_input], outputs=[memory_output])
+                def generate_with_prompt(prompt):
+                    return interface.generate_text(prompt)
+                generate_btn.click(fn=generate_with_prompt, inputs=[prompt_input], outputs=[memory_output])
                 checkpoint_btn.click(fn=interface.generate_checkpoint, inputs=[], outputs=[training_stats])
     
     return app

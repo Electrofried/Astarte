@@ -12,21 +12,22 @@ def get_checkpoint_name(config):
     params = f"L{config['num_layers']}_H{config['hidden_size']}_S{config['chunk_length']}"
     return f"checkpoint_{timestamp}_{params}"
 
-def generate_dream(model, state, sequence_length=512, noise_std=0.01):
-    """Generate a dream sequence from the current state."""
-    dream_state = state
-    dream_tokens = []
+def generate_dream(model, state, sequence_length=512):
+    """
+    Generate an autoregressive sequence ("dream") from the current state.
+    
+    For each step, the function:
+      1. Obtains logits via model.generate_from_state.
+      2. Samples a token from the softmax distribution.
+      3. Updates the state using the sampled token.
+    """
+    current_state = state
+    generated_tokens = []
     for _ in range(sequence_length):
-        noisy_null = dream_state[4] + torch.randn_like(dream_state[4]) * noise_std
-        current_dream_state = (
-            dream_state[0],
-            dream_state[1],
-            dream_state[2],
-            dream_state[3],
-            noisy_null
-        )
-        logits = model.generate_from_state(current_dream_state)
+        logits = model.generate_from_state(current_state)
         probs = torch.softmax(logits, dim=-1)
         token = torch.multinomial(probs, num_samples=1).item()
-        dream_tokens.append(token)
-    return dream_tokens
+        generated_tokens.append(token)
+        dummy_input = torch.tensor([[token]], dtype=torch.long, device=logits.device)
+        _, current_state = model(dummy_input, prev_state=current_state)
+    return generated_tokens
