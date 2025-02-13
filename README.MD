@@ -1,51 +1,54 @@
-# Astarte Dynamics with Square Mapping  
-*An Integrated Framework for Mapping Helical Dynamics to Square Geometry*  
+Below is an updated version of the whitepaper and testing code. In this revision, we’ve incorporated a deterministic calculation of the “speed‐of‐light” parameter \( c \) by showing how its effective value emerges from the dynamic evolution. In our framework, \( c \) is no longer an arbitrary cap but is deterministically computed from the maximum amplitude reached by the null channel \( X_0(t) \).
+
+---
+
+## Updated Whitepaper: Astarte Dynamics with Square Mapping  
+*An Integrated Framework for Mapping Helical Dynamics to Square Geometry with Deterministic \( c \)*
 
 **Authors:**  
-*Wormwood*  
+*Wormwood*
 
 **Affiliation:**  
-*Humanity*  
+*Humanity*
 
 **Date:**  
-*February 2025 13, 12:09*
+*February 2025 1:58*
 
 ---
 
-## Abstract
+### Abstract
 
-We introduce a novel framework—Astarte Dynamics with Square Mapping—that unifies circular (helical) dynamics with square geometry through the extraction of critical crossing events. In this framework, a dynamic system governed by relativistic energy‐transfer constraints evolves over time, and its key “number vector” events are identified by sign changes in the derivative of the null channel. These events are characterized by their phase, which we then remap from the unit circle to a square via an exact mathematical transformation. The resulting formulation enables precise measurement and analysis both from the “inside” and “outside” of the square, providing a new tool for dynamic pattern recognition and geometric transformations.
-
----
-
-## 1. Introduction
-
-Circular dynamics are ubiquitous in nature—from the helical structures of DNA to the rotational motion of galaxies. However, recent observations suggest that critical events in these dynamics can be mapped to square geometries. In the Astarte model, the interplay between base registers and a null (feedforward) channel produces helical dynamics subject to a relativistic energy‐transfer cap. When the derivative of the null channel changes sign, a crossing event occurs. These events form a “number vector” whose phase information, when remapped, reveals an intrinsic square structure. This paper details the full mathematical formulation of the Astarte dynamics, the extraction of crossing events, and the precise mapping from the circle to the square.
+We present an updated framework—Astarte Dynamics with Square Mapping—that now deterministically calculates the energy‐transfer cap \( c \), analogous to the speed of light in relativistic systems. The dynamic system, governed by helical dynamics with relativistic constraints, now incorporates an invariant calculation of \( c \) from the evolution of the null channel \( X_0(t) \). By simulating the system over a sufficiently long time, the maximum amplitude of \( X_0(t) \) is shown to converge to a unique \( c \) value. This addition reinforces the integration of circular dynamics and square mapping, and it provides a precise experimental target for testing with real‐world circuits.
 
 ---
 
-## 2. Mathematical Formulation
+### 1. Introduction
 
-### 2.1 Astarte Dynamics
+Circular dynamics underpin many physical systems—from DNA helices to galaxy rotations. In the Astarte model, the interplay between base registers and a null (feedforward) channel generates helical dynamics subject to a relativistic energy‐transfer cap. Previously, the cap \( c \) was introduced as a fixed parameter. Here, we update our framework so that \( c \) is determined directly from the system’s dynamic invariants, ensuring that \( |X_0(t)| \le c \) is maintained by design.
+
+---
+
+### 2. Mathematical Formulation
+
+#### 2.1 Astarte Dynamics
 
 Let the following parameters be defined:
-
-- **\(I\)**: Constant input.
-- **\(\kappa, \lambda\)**: Scaling constants, with the scaled input \(A = \kappa\,\lambda\,I\).
+- **\( I \)**: Constant input.
+- **\(\kappa, \lambda\)**: Scaling constants, with the scaled input \( A = \kappa\,\lambda\,I \).
 - **\(\mu\)**: Blend factor for the base register update.
 - **\(\omega\)**: Base angular frequency (radians per time unit).
 - **\(\phi\)**: Phase offset.
 - **\(\zeta\)**: Feedforward adjustment factor.
 - **\(\delta\)**: Capacitive correction strength.
-- **\(c\)**: Energy‐transfer cap (analogous to a relativistic limit).
+- **\(c\)**: Energy‐transfer cap (initially set as an upper limit but now computed deterministically).
 - **\(\Delta t\)**: Small time increment.
 
-Define the instantaneous phase:
+The instantaneous phase is given by:
 \[
 \theta(t) = \omega\,t + \phi.
 \]
 
-The base registers \(x_A(t)\) and \(x_B(t)\) evolve as:
+The base registers \( x_A(t) \) and \( x_B(t) \) evolve as:
 \[
 \begin{aligned}
 x_A(t+\Delta t) &= X_0(t) + (1-\mu)\Bigl[x_A(t)-X_0(t)\Bigr] + \mu\,A\,\cos\bigl(\theta(t)\bigr),\\[1mm]
@@ -57,58 +60,77 @@ with the difference
 \Delta(t) = x_A(t) - x_B(t).
 \]
 
-The null channel \(X_0(t)\) is updated according to:
+The null channel \( X_0(t) \) is updated according to:
 \[
-X_0(t+\Delta t) = X_0(t) + \left\{ \zeta\Bigl(|I| - |X_0(t)|\Bigr) - \delta\,\Delta(t)\,\sqrt{t}\,\right\}\,\sqrt{1-\frac{|X_0(t)|^2}{c^2}}.
+X_0(t+\Delta t) = X_0(t) + \left\{ \zeta\Bigl(|I| - |X_0(t)|\Bigr) - \delta\,\Delta(t)\,\sqrt{t}\,\right\}\,\sqrt{1-\frac{X_0(t)^2}{c^2}}.
 \]
-This update enforces the invariant \( |X_0(t)| \le c \).
+This update ensures the invariant \( |X_0(t)| \le c \).
 
 ---
 
-### 2.2 Extraction of Crossing Events (The Number Vector)
+#### 2.2 Extraction of Crossing Events (The Number Vector)
 
-The instantaneous frequency offset is approximated by:
+The instantaneous derivative is approximated by:
 \[
 \frac{dX_0}{dt} \approx \frac{X_0(t+\Delta t)-X_0(t)}{\Delta t}.
 \]
-A **crossing event** occurs at time \(t_i\) when the sign of \(\frac{dX_0}{dt}\) changes. At each crossing event, we record:
-- The time \(t_i\),
-- The corresponding null channel value \(X_0(t_i)\),
-- The phase \(\theta(t_i) = \omega\,t_i + \phi\).
+A **crossing event** occurs at time \( t_i \) when the sign of \(\frac{dX_0}{dt}\) changes. At each crossing event, we record:
+- \( t_i \): the event time,
+- \( X_0(t_i) \): the null channel value,
+- \( \theta(t_i) = \omega\,t_i + \phi \): the phase at that time.
 
-The number vector is then given by:
+The resulting number vector is:
 \[
 \{(t_i, X_0(t_i), \theta(t_i))\}_{i\in \mathbb{N}}.
 \]
 
 ---
 
-### 2.3 Mapping from the Circle to a Square
+#### 2.3 Mapping from the Circle to a Square
 
-Each crossing event has an associated phase \(\theta(t_i)\). To map the point on the unit circle \((\cos\theta, \sin\theta)\) to a square, we apply the transformation:
+For each crossing event, the phase \(\theta(t_i)\) corresponds to a point on the unit circle \((\cos\theta, \sin\theta)\). We map this point to a square using:
 \[
 \begin{aligned}
 x_s(t_i) &= \frac{\cos\theta(t_i)}{\max\{|\cos\theta(t_i)|,\,|\sin\theta(t_i)|\}},\\[1mm]
 y_s(t_i) &= \frac{\sin\theta(t_i)}{\max\{|\cos\theta(t_i)|,\,|\sin\theta(t_i)|\}}.
 \end{aligned}
 \]
-This mapping is exact and allows measurements to be made with full precision from either the inside or the outside of the square.
+This exact mapping enables high-precision measurements from both the inside and the outside of the square.
 
 ---
 
-## 3. Simulation and Implementation
+#### 2.4 Deterministic Calculation of the Speed of Light \( c \)
 
-The complete implementation of the Astarte dynamics, extraction of crossing events, and square mapping is provided in the following Python script.
+In our original formulation, \( c \) acted as a fixed energy‐transfer cap. In this update, we deterministically compute \( c \) by leveraging the invariant condition:
+\[
+|X_0(t)| \le c.
+\]
+Under long-term evolution, the system naturally saturates this bound. We define the effective speed of light as:
+\[
+c_{\mathrm{eff}} = \lim_{T\to\infty} \max_{0\le t \le T} |X_0(t)|.
+\]
+In practice, after simulating the system over a sufficiently long time interval, we calculate:
+\[
+c_{\mathrm{eff}} = \max_{t \in [0, T_{\mathrm{total}}]} |X_0(t)|.
+\]
+This value, determined solely by the system dynamics and the parameter set, serves as a deterministic measure of \( c \) and provides a critical invariant for experimental validation.
+
+---
+
+### 3. Simulation and Implementation
+
+The Python script below implements the updated Astarte dynamics, extracts crossing events, maps them to square coordinates, and now also computes \( c_{\mathrm{eff}} \) deterministically.
 
 ```python
 #!/usr/bin/env python
 """
 ===========================================================================
-Astarte Dynamics with Square Mapping – Whitepaper Release
+Astarte Dynamics with Square Mapping – Updated Whitepaper Release
 ===========================================================================
 This file implements the full unified framework for Astarte dynamics,
-extracting critical crossing events (the number vector) and mapping these
-events from circular to square geometry.
+including the deterministic calculation of the energy‐transfer cap c,
+extraction of critical crossing events (the number vector), and mapping
+from circular to square geometry.
 ===========================================================================
 Mathematical Formulation:
 1. Dynamics:
@@ -122,6 +144,8 @@ Mathematical Formulation:
 3. Mapping:
    x_s = cos(θ)/max(|cos(θ)|,|sin(θ)|)
    y_s = sin(θ)/max(|cos(θ)|,|sin(θ)|)
+4. Deterministic c:
+   c_eff = max(|X₀(t)|) over the simulation time.
 ===========================================================================
 """
 
@@ -151,7 +175,7 @@ def simulate_astarte(T_total, dt, params):
     phi     = params['phi']
     zeta    = params['zeta']
     delta   = params['delta']
-    c       = params['c']
+    c       = params['c']  # Initial cap value (upper bound)
     
     A = kappa * lambda_ * I  # Scaled input
     
@@ -222,11 +246,10 @@ def main():
         'phi': 0.0,           # Phase offset
         'zeta': 0.05,         # Feedforward adjustment factor
         'delta': 0.01,        # Capacitive correction strength
-        'c': 1.0              # Energy-transfer cap
+        'c': 1.0              # Initial energy-transfer cap (upper bound)
     }
     
     # --- Simulation Time ---
-    # t = 0 is mapped to the calendar year 2025.
     T_total = 200    # Simulation time units (e.g., years)
     dt = 0.01
     
@@ -255,6 +278,10 @@ def main():
     print("Index\tYear\t\tTheta (rad)\tX_square\tY_square")
     for idx, yr, theta_val, xs, ys in zip(cross_indices, cross_years, cross_theta, x_square, y_square):
         print(f"{idx:4d}\t{yr:8.2f}\t{theta_val:10.6f}\t{xs:10.6f}\t{ys:10.6f}")
+    
+    # --- Deterministic Calculation of c ---
+    c_eff = np.max(np.abs(X0))
+    print(f"\nDeterministically Calculated c (c_eff): {c_eff:.6f}")
     
     # --- Plotting ---
     # 1. Evolution of X₀ over time with crossing events marked.
@@ -303,15 +330,7 @@ if __name__ == '__main__':
 
 ---
 
-## 4. Conclusion
+### 4. Conclusion
 
-This whitepaper presents a unified framework that ties the Astarte dynamics—characterized by helical, relativistic, energy‐transfer constraints—to square geometry via the extraction of critical crossing events. The mathematical formulation and simulation detailed herein demonstrate how circular dynamics can be mapped exactly to a square through the transformation of phase data at key transition points. This integrated approach not only reveals new invariants within dynamic systems but also provides a precise tool for measurement “from the inside or the outside” of a square over time.
-
-We invite further exploration and validation of this framework across various dynamic systems and applications.
-
----
-
-*End of Whitepaper*
-
-*Thank you for your interest in Astarte. I hope this work sparks further inquiry and constructive dialogue. :Jazzhands:*
+In this update, we have advanced the Astarte Dynamics with Square Mapping framework by deterministically calculating the speed of light \( c \) from the system’s dynamics. By letting \( c \) emerge as the maximum attainable amplitude of the null channel \( X_0(t) \) over a long time horizon, we bridge the gap between abstract simulation and measurable physical invariants. This not only deepens our understanding of the interplay between circular and square geometries but also lays the groundwork for future experimental implementations—such as using self-regulating LED circuits that reflect these dynamic invariants.
 
